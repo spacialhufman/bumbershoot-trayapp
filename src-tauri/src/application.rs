@@ -14,19 +14,27 @@ pub mod application {
     use crate::myguest::myguest::MyGuest;
     use crate::sending::sending::Sending;
     use crate::wispot_api::wispot_api::WispotApi;
+    use crate::wispot_integration::wispot_integration::WispotIntegration;
 
     pub struct BumbershootApp {
         myguest: Arc<Mutex<MyGuest>>,
         sending: Arc<Mutex<Sending>>,
         wispot_api: Arc<Mutex<WispotApi>>,
+        wispot_integration: Arc<Mutex<WispotIntegration>>,
     }
 
     impl BumbershootApp {
-        pub fn new(myguest: MyGuest, sending: Sending, wispot_api: WispotApi) -> BumbershootApp {
+        pub fn new(
+            myguest: MyGuest,
+            sending: Sending,
+            wispot_api: WispotApi,
+            wispot_integration: WispotIntegration
+        ) -> BumbershootApp {
             BumbershootApp {
                 myguest: Arc::new(Mutex::new(myguest)),
                 sending: Arc::new(Mutex::new(sending)),
                 wispot_api: Arc::new(Mutex::new(wispot_api)),
+                wispot_integration: Arc::new(Mutex::new(wispot_integration)),
             }
         }
 
@@ -35,18 +43,20 @@ pub mod application {
                 .add_item(CustomMenuItem::new("run-myguest".to_string(), "Serve MyGuest"))
                 .add_item(CustomMenuItem::new("run-sending".to_string(), "Serve Sending"))
                 .add_item(CustomMenuItem::new("run-wispot_api".to_string(), "Serve Wispot API"))
+                .add_item(CustomMenuItem::new("run-wispot_integration".to_string(), "Serve Wispot Integration"))
                 .add_native_item(SystemTrayMenuItem::Separator)
                 .add_item(CustomMenuItem::new("close".to_string(), "Sair"));
 
             let myguest = self.myguest.clone();
             let sending = self.sending.clone();
             let wispot_api = self.wispot_api.clone();
+            let wispot_integration = self.wispot_integration.clone();
 
             Builder::default()
                 .system_tray(SystemTray::new().with_menu(tray_menu))
                 .on_system_tray_event(
                     move |app, event| Self::on_tray_event_handler(
-                        app, event, &myguest, &sending, &wispot_api
+                        app, event, &myguest, &sending, &wispot_api, &wispot_integration
                     )
                 )
                 .on_window_event(|event| match event.event() {
@@ -65,7 +75,8 @@ pub mod application {
             event: SystemTrayEvent,
             myguest: &Arc<Mutex<MyGuest>>,
             sending: &Arc<Mutex<Sending>>,
-            wispot_api: &Arc<Mutex<WispotApi>>
+            wispot_api: &Arc<Mutex<WispotApi>>,
+            wispot_integration: &Arc<Mutex<WispotIntegration>>
         ) {
             match event {
                 SystemTrayEvent::DoubleClick { tray_id: _, position: _, size: _, .. } => {
@@ -115,6 +126,19 @@ pub mod application {
                                 item_handle.set_title("Serve Wispot API").unwrap();
                             }
                         }
+                        "run-wispot_integration" => {
+                            if wispot_integration.lock().unwrap().pid.is_none() {
+                                wispot_integration.lock().unwrap().start();
+
+                                item_handle.set_selected(true).unwrap();
+                                item_handle.set_title("Stop Wispot Integration").unwrap();
+                            } else {
+                                wispot_api.lock().unwrap().stop();
+
+                                item_handle.set_selected(false).unwrap();
+                                item_handle.set_title("Serve Wispot Integration").unwrap();
+                            }
+                        }
                         "close" => {
                             if myguest.lock().unwrap().pid.is_some() {
                                 myguest.lock().unwrap().stop();
@@ -126,6 +150,10 @@ pub mod application {
 
                             if wispot_api.lock().unwrap().pid.is_some() {
                                 wispot_api.lock().unwrap().stop();
+                            }
+
+                            if wispot_integration.lock().unwrap().pid.is_some() {
+                                wispot_integration.lock().unwrap().stop();
                             }
 
                             std::process::exit(0);

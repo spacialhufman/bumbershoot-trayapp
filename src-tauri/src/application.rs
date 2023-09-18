@@ -1,5 +1,6 @@
 pub mod application {
-    use std::sync::{ Arc, Mutex };
+    use std::{collections::HashMap, sync::{Mutex, Arc}};
+    use bumbershoot::lib::AppRunner;
     use tauri::{
         Builder,
         Manager,
@@ -11,53 +12,41 @@ pub mod application {
         WindowEvent, AppHandle
     };
 
-    use crate::myguest::myguest::MyGuest;
-    use crate::sending::sending::Sending;
-    use crate::wispot_api::wispot_api::WispotApi;
-    use crate::wispot_integration::wispot_integration::WispotIntegration;
-
     pub struct BumbershootApp {
-        myguest: Arc<Mutex<MyGuest>>,
-        sending: Arc<Mutex<Sending>>,
-        wispot_api: Arc<Mutex<WispotApi>>,
-        wispot_integration: Arc<Mutex<WispotIntegration>>,
+        app_list: Arc<Mutex<HashMap<String, AppRunner>>>,
     }
 
     impl BumbershootApp {
-        pub fn new(
-            myguest: MyGuest,
-            sending: Sending,
-            wispot_api: WispotApi,
-            wispot_integration: WispotIntegration
-        ) -> BumbershootApp {
-            BumbershootApp {
-                myguest: Arc::new(Mutex::new(myguest)),
-                sending: Arc::new(Mutex::new(sending)),
-                wispot_api: Arc::new(Mutex::new(wispot_api)),
-                wispot_integration: Arc::new(Mutex::new(wispot_integration)),
-            }
+        pub fn new(app_list: HashMap<String, AppRunner>) -> BumbershootApp {
+            BumbershootApp { app_list: Arc::new(Mutex::new(app_list)) }
         }
 
-        pub fn run(&self) {
-            let tray_menu = SystemTrayMenu::new()
-                .add_item(CustomMenuItem::new("run-myguest".to_string(), "Serve MyGuest"))
-                .add_item(CustomMenuItem::new("run-sending".to_string(), "Serve Sending"))
-                .add_item(CustomMenuItem::new("run-wispot_api".to_string(), "Serve Wispot API"))
-                .add_item(CustomMenuItem::new("run-wispot_integration".to_string(), "Serve Wispot Integration"))
-                .add_native_item(SystemTrayMenuItem::Separator)
-                .add_item(CustomMenuItem::new("close".to_string(), "Sair"));
+        pub fn run(self) {
+            let mut tray_menu = SystemTrayMenu::new();
 
-            let myguest = self.myguest.clone();
-            let sending = self.sending.clone();
-            let wispot_api = self.wispot_api.clone();
-            let wispot_integration = self.wispot_integration.clone();
+            let app_list = self.app_list.clone();
+
+            {
+                let hash_apps = &app_list.lock().unwrap();
+                for key in hash_apps.keys() {
+                    let app_runner = &hash_apps[key];
+
+                    tray_menu = tray_menu.add_item(
+                        CustomMenuItem::new(
+                            app_runner.hash_name.clone(),
+                            format!("Serve {}", app_runner.name.clone())
+                        )
+                    );
+                }
+            }
+
+            tray_menu = tray_menu.add_native_item(SystemTrayMenuItem::Separator);
+            tray_menu = tray_menu.add_item(CustomMenuItem::new("close".to_string(), "Sair"));
 
             Builder::default()
                 .system_tray(SystemTray::new().with_menu(tray_menu))
                 .on_system_tray_event(
-                    move |app, event| Self::on_tray_event_handler(
-                        app, event, &myguest, &sending, &wispot_api, &wispot_integration
-                    )
+                    move |app, event| Self::on_tray_event_handler(&app_list, app, event)
                 )
                 .on_window_event(|event| match event.event() {
                     WindowEvent::CloseRequested { api, .. } => {
@@ -71,12 +60,9 @@ pub mod application {
         }
 
         fn on_tray_event_handler(
+            app_list: &Arc<Mutex<HashMap<String, AppRunner>>>,
             app: &AppHandle,
-            event: SystemTrayEvent,
-            myguest: &Arc<Mutex<MyGuest>>,
-            sending: &Arc<Mutex<Sending>>,
-            wispot_api: &Arc<Mutex<WispotApi>>,
-            wispot_integration: &Arc<Mutex<WispotIntegration>>
+            event: SystemTrayEvent
         ) {
             match event {
                 SystemTrayEvent::DoubleClick { tray_id: _, position: _, size: _, .. } => {
@@ -87,78 +73,31 @@ pub mod application {
                     let item_handle = app.tray_handle().get_item(&id);
 
                     match id.as_str() {
-                        "run-myguest" => {
-                            if myguest.lock().unwrap().pid.is_none() {
-                                myguest.lock().unwrap().start();
-
-                                item_handle.set_selected(true).unwrap();
-                                item_handle.set_title("Stop MyGuest").unwrap();
-                            } else {
-                                myguest.lock().unwrap().stop();
-
-                                item_handle.set_selected(false).unwrap();
-                                item_handle.set_title("Serve MyGuest").unwrap();
-                            }
-                        }
-                        "run-sending" => {
-                            if sending.lock().unwrap().pid.is_none() {
-                                sending.lock().unwrap().start();
-
-                                item_handle.set_selected(true).unwrap();
-                                item_handle.set_title("Stop Sending").unwrap();
-                            } else {
-                                sending.lock().unwrap().stop();
-
-                                item_handle.set_selected(false).unwrap();
-                                item_handle.set_title("Serve Sending").unwrap();
-                            }
-                        }
-                        "run-wispot_api" => {
-                            if wispot_api.lock().unwrap().pid.is_none() {
-                                wispot_api.lock().unwrap().start();
-
-                                item_handle.set_selected(true).unwrap();
-                                item_handle.set_title("Stop Wispot API").unwrap();
-                            } else {
-                                wispot_api.lock().unwrap().stop();
-
-                                item_handle.set_selected(false).unwrap();
-                                item_handle.set_title("Serve Wispot API").unwrap();
-                            }
-                        }
-                        "run-wispot_integration" => {
-                            if wispot_integration.lock().unwrap().pid.is_none() {
-                                wispot_integration.lock().unwrap().start();
-
-                                item_handle.set_selected(true).unwrap();
-                                item_handle.set_title("Stop Wispot Integration").unwrap();
-                            } else {
-                                wispot_api.lock().unwrap().stop();
-
-                                item_handle.set_selected(false).unwrap();
-                                item_handle.set_title("Serve Wispot Integration").unwrap();
-                            }
-                        }
                         "close" => {
-                            if myguest.lock().unwrap().pid.is_some() {
-                                myguest.lock().unwrap().stop();
-                            }
-
-                            if sending.lock().unwrap().pid.is_some() {
-                                sending.lock().unwrap().stop();
-                            }
-
-                            if wispot_api.lock().unwrap().pid.is_some() {
-                                wispot_api.lock().unwrap().stop();
-                            }
-
-                            if wispot_integration.lock().unwrap().pid.is_some() {
-                                wispot_integration.lock().unwrap().stop();
+                            for (_, app_runner) in app_list.lock().unwrap().iter_mut() {
+                                if app_runner.is_running() {
+                                    app_runner.stop();
+                                }
                             }
 
                             std::process::exit(0);
                         }
-                        _ => {}
+                        _ => {
+                            let mut app_list_mut = app_list.lock().unwrap();
+                            let app_runner       = app_list_mut.get_mut(id.as_str()).unwrap();
+
+                            if !app_runner.is_running() {
+                                app_runner.run_application();
+
+                                item_handle.set_selected(true).unwrap();
+                                item_handle.set_title(format!("Stop {}", &app_runner.name)).unwrap();
+                            } else {
+                                app_runner.stop();
+
+                                item_handle.set_selected(false).unwrap();
+                                item_handle.set_title(format!("Serve {}", &app_runner.name)).unwrap();
+                            }
+                        }
                     }
                 }
                 _ => {}

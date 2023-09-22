@@ -1,24 +1,12 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod application;
-mod myguest;
-mod sending;
-mod wispot_api;
-mod wispot_integration;
 
 use application::application::BumbershootApp;
-use myguest::myguest::MyGuest;
-use sending::sending::Sending;
-use wispot_api::wispot_api::WispotApi;
-use wispot_integration::wispot_integration::WispotIntegration;
+use bumbershoot::lib::factory_app_list;
 
 fn main() {
-    let application = BumbershootApp::new(
-        MyGuest::new(),
-        Sending::new(),
-        WispotApi::new(),
-        WispotIntegration::new()
-    );
+    let application = BumbershootApp::new(factory_app_list());
 
     application.run();
 }

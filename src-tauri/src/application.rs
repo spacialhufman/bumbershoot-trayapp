@@ -1,6 +1,5 @@
 pub mod application {
     use std::{collections::HashMap, sync::{Mutex, Arc}};
-    use bumbershoot::lib::AppRunner;
     use tauri::{
         Builder,
         Manager,
@@ -11,6 +10,8 @@ pub mod application {
         SystemTrayEvent,
         WindowEvent, AppHandle
     };
+
+    use crate::app_runner::app_runner::AppRunner;
 
     pub struct BumbershootApp {
         app_list: Arc<Mutex<HashMap<String, AppRunner>>>,

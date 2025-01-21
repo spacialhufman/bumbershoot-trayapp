@@ -1,5 +1,5 @@
 pub mod php {
-    use std::{os::windows::process::CommandExt, process::Command};
+    use std::process::{Command, Stdio};
 
     pub struct PhpDispatcher {
         pub pid: Option<u32>,
@@ -20,23 +20,24 @@ pub mod php {
                 .arg("serve")
                 .arg(format!("--host={}", self.host))
                 .arg(format!("--port={}", self.port))
-                .creation_flags(0x08000000)
+                .stdout(Stdio::null())
+                .stderr(Stdio::null())
                 .spawn()
-                .expect("Não deu para rodar a aplicação");
+                .expect("Failed to run the application");
 
             self.pid = Some(command.id());
         }
 
         pub fn kill(&mut self) {
-            Command::new("taskkill")
-                .arg("/F")
-                .arg("/T")
-                .arg("/PID")
-                .arg(self.pid.unwrap().to_string())
-                .spawn()
-                .expect("Failed to kill command");
+            if let Some(pid) = self.pid {
+                Command::new("kill")
+                    .arg("-9")
+                    .arg(pid.to_string())
+                    .spawn()
+                    .expect("Failed to kill command");
 
-            self.pid = None;
+                self.pid = None;
+            }
         }
     }
 }

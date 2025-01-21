@@ -4,11 +4,11 @@ pub mod factories {
     use crate::php_dispatcher::php::{PhpVersion, PhpDispatcher};
 
     fn factory_php72() -> PhpVersion {
-        PhpVersion { path: "c:/wamp64/bin/php/php7.2.33/php".to_string() }
+        PhpVersion { path: "/usr/bin/php7.2".to_string() }
     }
 
     fn factory_php74() -> PhpVersion {
-        PhpVersion { path: "c:/wamp64/bin/php/php7.4.9/php".to_string() }
+        PhpVersion { path: "/usr/bin/php7.4".to_string() }
     }
 
     pub fn factory_app_list() -> HashMap<String, AppRunner> {
@@ -25,7 +25,7 @@ pub mod factories {
                 pid: None,
                 php: factory_php72(),
                 host: "dev-painel.myguest.com.br".to_string(),
-                app_folder: "c:/wamp64/www/wispot/myguest-new/artisan".to_string(),
+                app_folder: "/var/www/wispot/myguest-new/artisan".to_string(),
                 port: 8002
             }
         });
@@ -37,7 +37,7 @@ pub mod factories {
                 pid: None,
                 php: factory_php74(),
                 host: "dev-api.wispot.com.br".to_string(),
-                app_folder: "c:/wamp64/www/wispot/api.wispot.com.br/artisan".to_string(),
+                app_folder: "/var/www/wispot/api.wispot.com.br/artisan".to_string(),
                 port: 8003
             }
         });
@@ -49,7 +49,7 @@ pub mod factories {
                 pid: None,
                 php: factory_php74(),
                 host: "dev-integracao.wispot.com.br".to_string(),
-                app_folder: "c:/wamp64/www/wispot/integracao.wispot.com.br/artisan".to_string(),
+                app_folder: "/var/www/wispot/integracao.wispot.com.br/artisan".to_string(),
                 port: 8008
             }
         });
